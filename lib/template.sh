@@ -121,12 +121,23 @@ BOOK_CMDS_EOF
         % LuaLaTeX-specific setup
         \\usepackage{fontspec}
         % Load fonts with Unicode support (with fallbacks for minimal environments)
-        \\IfFontExistsTF{Latin Modern Roman}{
-            \\setmainfont{Latin Modern Roman}[Ligatures=TeX]
+        % STIX Two Math is preferred as main font: it contains all text glyphs AND full
+        % Unicode math/super/subscript/operator coverage, eliminating "Missing character" warnings.
+        % Note: STIX Two Math only has a Regular weight, so bold/italic are synthesized by fontspec.
+        \\IfFontExistsTF{STIX Two Math}{
+            \\setmainfont{STIX Two Math}[Ligatures=TeX]
         }{
-            \\IfFontExistsTF{TeX Gyre Termes}{
-                \\setmainfont{TeX Gyre Termes}[Ligatures=TeX]
-            }{}
+            \\IfFontExistsTF{STIX Two Text}{
+                \\setmainfont{STIX Two Text}[Ligatures=TeX]
+            }{
+                \\IfFontExistsTF{Latin Modern Roman}{
+                    \\setmainfont{Latin Modern Roman}[Ligatures=TeX]
+                }{
+                    \\IfFontExistsTF{TeX Gyre Termes}{
+                        \\setmainfont{TeX Gyre Termes}[Ligatures=TeX]
+                    }{}
+                }
+            }
         }
         \\IfFontExistsTF{Latin Modern Sans}{
             \\setsansfont{Latin Modern Sans}[Ligatures=TeX]
@@ -142,17 +153,33 @@ BOOK_CMDS_EOF
                 \\setmonofont{TeX Gyre Cursor}[Ligatures=TeX]
             }{}
         }
+        % Math font: STIX Two Math for proper Unicode math glyph coverage
+        \\usepackage{unicode-math}
+        \\IfFontExistsTF{STIX Two Math}{
+            \\setmathfont{STIX Two Math}
+        }{}
     \\else
         \\ifxetex
             % XeLaTeX-specific setup
             \\usepackage{fontspec}
             % Load fonts with Unicode support (with fallbacks for minimal environments)
-            \\IfFontExistsTF{Latin Modern Roman}{
-                \\setmainfont{Latin Modern Roman}[Ligatures=TeX]
+            % STIX Two Math is preferred as main font: it contains all text glyphs AND full
+            % Unicode math/super/subscript/operator coverage, eliminating "Missing character" warnings.
+            % Note: STIX Two Math only has a Regular weight, so bold/italic are synthesized by fontspec.
+            \\IfFontExistsTF{STIX Two Math}{
+                \\setmainfont{STIX Two Math}[Ligatures=TeX]
             }{
-                \\IfFontExistsTF{TeX Gyre Termes}{
-                    \\setmainfont{TeX Gyre Termes}[Ligatures=TeX]
-                }{}
+                \\IfFontExistsTF{STIX Two Text}{
+                    \\setmainfont{STIX Two Text}[Ligatures=TeX]
+                }{
+                    \\IfFontExistsTF{Latin Modern Roman}{
+                        \\setmainfont{Latin Modern Roman}[Ligatures=TeX]
+                    }{
+                        \\IfFontExistsTF{TeX Gyre Termes}{
+                            \\setmainfont{TeX Gyre Termes}[Ligatures=TeX]
+                        }{}
+                    }
+                }
             }
             \\IfFontExistsTF{Latin Modern Sans}{
                 \\setsansfont{Latin Modern Sans}[Ligatures=TeX]
@@ -225,6 +252,12 @@ BOOK_CMDS_EOF
             \\setTransitionsFor{GreekAndCoptic}{\\greekfont}{\\rmfamily}
             \\setTransitionsFor{EgyptianHieroglyphs}{\\egyptfont}{\\rmfamily}
             \\setTransitionsFor{Cuneiform}{\\cuneifont}{\\rmfamily}
+
+            % Math font: STIX Two Math for proper Unicode math glyph coverage
+            \\usepackage{unicode-math}
+            \\IfFontExistsTF{STIX Two Math}{
+                \\setmathfont{STIX Two Math}
+            }{}
         \\else
             % pdfLaTeX-specific setup
             \\usepackage[utf8]{inputenc}
@@ -238,7 +271,10 @@ BOOK_CMDS_EOF
     \\usepackage{graphicx}
     \\usepackage{amsmath}
     \\usepackage{mathtools}  % Extends amsmath: paired delimiters, cases*, etc.
-    \\usepackage{amssymb}
+    \\ifluatex\\else\\ifxetex\\else
+        % amssymb is only needed for pdfLaTeX (unicode-math replaces it under XeLaTeX/LuaLaTeX)
+        \\usepackage{amssymb}
+    \\fi\\fi
     \\usepackage{amsthm}   % For theorem and proof environments
     % Optional: DCTX Calligraphic extends \\mathcal to lowercase a-z
     \\IfFileExists{dutchcal.sty}{
