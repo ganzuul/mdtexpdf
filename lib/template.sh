@@ -121,22 +121,18 @@ BOOK_CMDS_EOF
         % LuaLaTeX-specific setup
         \\usepackage{fontspec}
         % Load fonts with Unicode support (with fallbacks for minimal environments)
-        % STIX Two Math is preferred as main font: it contains all text glyphs AND full
-        % Unicode math/super/subscript/operator coverage, eliminating "Missing character" warnings.
-        % Note: STIX Two Math only has a Regular weight, so bold/italic are synthesized by fontspec.
-        \\IfFontExistsTF{STIX Two Math}{
-            \\setmainfont{STIX Two Math}[Ligatures=TeX]
+        % STIX Two Text is preferred as main font: it has Regular + Bold + Italic + BoldItalic
+        % for proper bold/italic rendering. Math operators not in STIX Two Text are handled
+        % by unicode-math (\setmathfont{STIX Two Math}) and \newunicodechar mappings below.
+        \\IfFontExistsTF{STIX Two Text}{
+            \\setmainfont{STIX Two Text}[Ligatures=TeX]
         }{
-            \\IfFontExistsTF{STIX Two Text}{
-                \\setmainfont{STIX Two Text}[Ligatures=TeX]
+            \\IfFontExistsTF{Latin Modern Roman}{
+                \\setmainfont{Latin Modern Roman}[Ligatures=TeX]
             }{
-                \\IfFontExistsTF{Latin Modern Roman}{
-                    \\setmainfont{Latin Modern Roman}[Ligatures=TeX]
-                }{
-                    \\IfFontExistsTF{TeX Gyre Termes}{
-                        \\setmainfont{TeX Gyre Termes}[Ligatures=TeX]
-                    }{}
-                }
+                \\IfFontExistsTF{TeX Gyre Termes}{
+                    \\setmainfont{TeX Gyre Termes}[Ligatures=TeX]
+                }{}
             }
         }
         \\IfFontExistsTF{Latin Modern Sans}{
@@ -146,12 +142,16 @@ BOOK_CMDS_EOF
                 \\setsansfont{TeX Gyre Heros}[Ligatures=TeX]
             }{}
         }
-        \\IfFontExistsTF{Latin Modern Mono}{
-            \\setmonofont{Latin Modern Mono}[Ligatures=TeX]
+        \\IfFontExistsTF{DejaVu Sans Mono}{
+            \\setmonofont{DejaVu Sans Mono}[Ligatures=TeX]
         }{
-            \\IfFontExistsTF{TeX Gyre Cursor}{
-                \\setmonofont{TeX Gyre Cursor}[Ligatures=TeX]
-            }{}
+            \\IfFontExistsTF{Latin Modern Mono}{
+                \\setmonofont{Latin Modern Mono}[Ligatures=TeX]
+            }{
+                \\IfFontExistsTF{TeX Gyre Cursor}{
+                    \\setmonofont{TeX Gyre Cursor}[Ligatures=TeX]
+                }{}
+            }
         }
         % Math font: STIX Two Math for proper Unicode math glyph coverage
         \\usepackage{unicode-math}
@@ -163,22 +163,18 @@ BOOK_CMDS_EOF
             % XeLaTeX-specific setup
             \\usepackage{fontspec}
             % Load fonts with Unicode support (with fallbacks for minimal environments)
-            % STIX Two Math is preferred as main font: it contains all text glyphs AND full
-            % Unicode math/super/subscript/operator coverage, eliminating "Missing character" warnings.
-            % Note: STIX Two Math only has a Regular weight, so bold/italic are synthesized by fontspec.
-            \\IfFontExistsTF{STIX Two Math}{
-                \\setmainfont{STIX Two Math}[Ligatures=TeX]
+            % STIX Two Text is preferred as main font: it has Regular + Bold + Italic + BoldItalic
+            % for proper bold/italic rendering. Math operators not in STIX Two Text are handled
+            % by unicode-math (\setmathfont{STIX Two Math}) and \newunicodechar mappings below.
+            \\IfFontExistsTF{STIX Two Text}{
+                \\setmainfont{STIX Two Text}[Ligatures=TeX]
             }{
-                \\IfFontExistsTF{STIX Two Text}{
-                    \\setmainfont{STIX Two Text}[Ligatures=TeX]
+                \\IfFontExistsTF{Latin Modern Roman}{
+                    \\setmainfont{Latin Modern Roman}[Ligatures=TeX]
                 }{
-                    \\IfFontExistsTF{Latin Modern Roman}{
-                        \\setmainfont{Latin Modern Roman}[Ligatures=TeX]
-                    }{
-                        \\IfFontExistsTF{TeX Gyre Termes}{
-                            \\setmainfont{TeX Gyre Termes}[Ligatures=TeX]
-                        }{}
-                    }
+                    \\IfFontExistsTF{TeX Gyre Termes}{
+                        \\setmainfont{TeX Gyre Termes}[Ligatures=TeX]
+                    }{}
                 }
             }
             \\IfFontExistsTF{Latin Modern Sans}{
@@ -188,12 +184,16 @@ BOOK_CMDS_EOF
                     \\setsansfont{TeX Gyre Heros}[Ligatures=TeX]
                 }{}
             }
-            \\IfFontExistsTF{Latin Modern Mono}{
-                \\setmonofont{Latin Modern Mono}[Ligatures=TeX]
+            \\IfFontExistsTF{DejaVu Sans Mono}{
+                \\setmonofont{DejaVu Sans Mono}[Ligatures=TeX]
             }{
-                \\IfFontExistsTF{TeX Gyre Cursor}{
-                    \\setmonofont{TeX Gyre Cursor}[Ligatures=TeX]
-                }{}
+                \\IfFontExistsTF{Latin Modern Mono}{
+                    \\setmonofont{Latin Modern Mono}[Ligatures=TeX]
+                }{
+                    \\IfFontExistsTF{TeX Gyre Cursor}{
+                        \\setmonofont{TeX Gyre Cursor}[Ligatures=TeX]
+                    }{}
+                }
             }
 
             % Additional Unicode font setup for CJK characters (after packages are loaded)
@@ -252,6 +252,26 @@ BOOK_CMDS_EOF
             \\setTransitionsFor{GreekAndCoptic}{\\greekfont}{\\rmfamily}
             \\setTransitionsFor{EgyptianHieroglyphs}{\\egyptfont}{\\rmfamily}
             \\setTransitionsFor{Cuneiform}{\\cuneifont}{\\rmfamily}
+
+            % STIX Two Math as fallback font for math Unicode blocks.
+            % STIX Two Text lacks math operators, arrows, double-struck letters, etc.
+            % ucharclasses auto-switches to STIX Two Math when these blocks are encountered.
+            \\IfFontExistsTF{STIX Two Math}{
+                \\newfontfamily{\\mathfallbackfont}{STIX Two Math}[Ligatures=TeX]
+                \\setTransitionsFor{MathematicalOperators}{\\mathfallbackfont}{\\rmfamily}
+                \\setTransitionsFor{SupplementalMathematicalOperators}{\\mathfallbackfont}{\\rmfamily}
+                \\setTransitionsFor{MiscellaneousMathematicalSymbolsA}{\\mathfallbackfont}{\\rmfamily}
+                \\setTransitionsFor{MiscellaneousMathematicalSymbolsB}{\\mathfallbackfont}{\\rmfamily}
+                \\setTransitionsFor{MathematicalAlphanumericSymbols}{\\mathfallbackfont}{\\rmfamily}
+                \\setTransitionsFor{LetterlikeSymbols}{\\mathfallbackfont}{\\rmfamily}
+                \\setTransitionsFor{Arrows}{\\mathfallbackfont}{\\rmfamily}
+                \\setTransitionsFor{SupplementalArrowsA}{\\mathfallbackfont}{\\rmfamily}
+                \\setTransitionsFor{SupplementalArrowsB}{\\mathfallbackfont}{\\rmfamily}
+                \\setTransitionsFor{MiscellaneousTechnical}{\\mathfallbackfont}{\\rmfamily}
+                \\setTransitionsFor{GeometricShapes}{\\mathfallbackfont}{\\rmfamily}
+                \\setTransitionsFor{BoxDrawing}{\\mathfallbackfont}{\\rmfamily}
+                \\setTransitionsFor{SuperscriptsAndSubscripts}{\\mathfallbackfont}{\\rmfamily}
+            }{}
 
             % Math font: STIX Two Math for proper Unicode math glyph coverage
             \\usepackage{unicode-math}
@@ -562,7 +582,61 @@ BOOK_CMDS_EOF
         \\newunicodechar{⁻}{\\ensuremath{^-}}
     \\fi\\fi
 
-    % Configure listings for code blocks
+    % XeLaTeX: ucharclasses already handles font switching for math Unicode blocks
+    % (see \setTransitionsFor above). No additional \newunicodechar needed for operators.
+    % LuaLaTeX: add text-mode math operator mappings via \ensuremath (no ucharclasses support)
+    \\ifluatex
+        \\newunicodechar{→}{\\ensuremath{\\rightarrow}}
+        \\newunicodechar{←}{\\ensuremath{\\leftarrow}}
+        \\newunicodechar{↔}{\\ensuremath{\\leftrightarrow}}
+        \\newunicodechar{⇒}{\\ensuremath{\\Rightarrow}}
+        \\newunicodechar{⇐}{\\ensuremath{\\Leftarrow}}
+        \\newunicodechar{⇔}{\\ensuremath{\\Leftrightarrow}}
+        \\newunicodechar{⇌}{\\ensuremath{\\rightleftharpoons}}
+        \\newunicodechar{∀}{\\ensuremath{\\forall}}
+        \\newunicodechar{∃}{\\ensuremath{\\exists}}
+        \\newunicodechar{∈}{\\ensuremath{\\in}}
+        \\newunicodechar{∉}{\\ensuremath{\\notin}}
+        \\newunicodechar{∋}{\\ensuremath{\\ni}}
+        \\newunicodechar{⊂}{\\ensuremath{\\subset}}
+        \\newunicodechar{⊃}{\\ensuremath{\\supset}}
+        \\newunicodechar{⊆}{\\ensuremath{\\subseteq}}
+        \\newunicodechar{⊇}{\\ensuremath{\\supseteq}}
+        \\newunicodechar{∪}{\\ensuremath{\\cup}}
+        \\newunicodechar{∩}{\\ensuremath{\\cap}}
+        \\newunicodechar{∧}{\\ensuremath{\\wedge}}
+        \\newunicodechar{∨}{\\ensuremath{\\vee}}
+        \\newunicodechar{∞}{\\ensuremath{\\infty}}
+        \\newunicodechar{≠}{\\ensuremath{\\neq}}
+        \\newunicodechar{≤}{\\ensuremath{\\leq}}
+        \\newunicodechar{≥}{\\ensuremath{\\geq}}
+        \\newunicodechar{≈}{\\ensuremath{\\approx}}
+        \\newunicodechar{≡}{\\ensuremath{\\equiv}}
+        \\newunicodechar{∼}{\\ensuremath{\\sim}}
+        \\newunicodechar{∝}{\\ensuremath{\\propto}}
+        \\newunicodechar{∂}{\\ensuremath{\\partial}}
+        \\newunicodechar{∇}{\\ensuremath{\\nabla}}
+        \\newunicodechar{∫}{\\ensuremath{\\int}}
+        \\newunicodechar{∑}{\\ensuremath{\\sum}}
+        \\newunicodechar{∏}{\\ensuremath{\\prod}}
+        \\newunicodechar{√}{\\ensuremath{\\sqrt}}
+        \\newunicodechar{⊗}{\\ensuremath{\\otimes}}
+        \\newunicodechar{◁}{\\ensuremath{\\triangleleft}}
+        \\newunicodechar{ℝ}{\\ensuremath{\\mathbb{R}}}
+        \\newunicodechar{ℤ}{\\ensuremath{\\mathbb{Z}}}
+        \\newunicodechar{ℕ}{\\ensuremath{\\mathbb{N}}}
+        \\newunicodechar{ℚ}{\\ensuremath{\\mathbb{Q}}}
+        \\newunicodechar{ℂ}{\\ensuremath{\\mathbb{C}}}
+    \\fi
+
+    % Phonetic Extensions — modifier letters not in STIX Two Math/Text
+    % These are used in scientific notation (e.g. nuclear isomers: ᵐTc, ᵍ-ray)
+    % Rendered as scaled-down italic text letters as a typographic fallback
+    \\newunicodechar{ᵍ}{{\\fontsize{0.7em}{0.7em}\\selectfont\\textit{g}}}
+    \\newunicodechar{ᵐ}{{\\fontsize{0.7em}{0.7em}\\selectfont\\textit{m}}}
+    % ℏ (U+210F PLANCK CONSTANT OVER TWO PI) — present in STIX Two Text but
+    % mapped to \ensuremath{\hbar} for consistent rendering via the math font
+    \\newunicodechar{ℏ}{\\ensuremath{\\hbar}}
     \\lstset{
       basicstyle=\\ttfamily\\small,
       breaklines=true,          % Enable automatic line breaking

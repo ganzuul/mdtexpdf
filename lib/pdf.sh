@@ -57,6 +57,17 @@ detect_unicode_characters() {
         return 0  # Found typographic characters
     fi
 
+    # Check for mathematical Unicode characters that require XeLaTeX/LuaLaTeX
+    # with unicode-math + STIX Two Math for proper rendering.
+    # Mathematical Operators: U+2200-U+22FF (∀∈∞∑∫→←⇒⇔∪∩⊂⊃⊆⊇≠≤≥≈…)
+    # Arrows: U+2190-U+21FF (→←↔⇒⇐⇔⇌)
+    # Superscripts/Subscripts: U+2070-U+209F (⁰⁸⁹⁺⁻₀₁₂)
+    # Letterlike Symbols: U+2100-U+214F (ℝℤℕℚℂℏℓ)
+    # Phonetic Extensions: U+1D00-U+1D7F (ᵍᵐ)
+    if grep -qP '[\x{2070}-\x{209F}\x{2100}-\x{214F}\x{2190}-\x{21FF}\x{2200}-\x{22FF}\x{1D00}-\x{1D7F}]' "$input_file" 2>/dev/null; then
+        return 0  # Found mathematical Unicode characters
+    fi
+
     return 1  # No Unicode characters requiring special handling found
 }
 

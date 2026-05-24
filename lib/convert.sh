@@ -805,6 +805,15 @@ setup_pdf_bibliography() {
 execute_pandoc() {
     # shellcheck disable=SC2086 # Word splitting is intentional for _PDF_PANDOC_OPTS/_PDF_FILTER_OPTION/_PDF_TOC_OPTION/_PDF_SECTION_NUMBERING_OPTION
 
+    # The listings package cannot handle multi-byte UTF-8 characters (e.g. ℏ, π)
+    # inside \lstinline under XeLaTeX/LuaLaTeX. Use Pandoc's default fancyvrb
+    # highlighting for Unicode engines; keep --listings for pdfLaTeX.
+    if [ "$PDF_ENGINE" = "xelatex" ] || [ "$PDF_ENGINE" = "lualatex" ]; then
+        _PDF_LISTINGS_OPTION=""
+    else
+        _PDF_LISTINGS_OPTION="--listings"
+    fi
+
     # When --index is used, we need a multi-step build: pandoc→latex, then
     # xelatex + makeindex + xelatex to generate the index with page numbers.
     # Pandoc's --to pdf doesn't run makeindex between LaTeX passes.
@@ -824,7 +833,7 @@ execute_pandoc() {
         "${_PDF_BIBLIOGRAPHY_VARS[@]}" \
         --variable=geometry:margin=1in \
         --highlight-style=tango \
-        --listings \
+        $_PDF_LISTINGS_OPTION \
         $_PDF_TOC_OPTION \
         $_PDF_SECTION_NUMBERING_OPTION \
         "${_PDF_FOOTER_VARS[@]}" \
@@ -874,7 +883,7 @@ _execute_pandoc_with_index() {
         "${_PDF_BIBLIOGRAPHY_VARS[@]}" \
         --variable=geometry:margin=1in \
         --highlight-style=tango \
-        --listings \
+        $_PDF_LISTINGS_OPTION \
         $_PDF_TOC_OPTION \
         $_PDF_SECTION_NUMBERING_OPTION \
         "${_PDF_FOOTER_VARS[@]}" \
