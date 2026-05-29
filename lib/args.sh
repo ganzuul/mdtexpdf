@@ -40,6 +40,7 @@ init_convert_args() {
     ARG_INDEX=false
     ARG_LULU=false
     ARG_TRIM_SIZE=""
+    ARG_FORCE_PREPROCESS=false
 
     # Reset file variables
     INPUT_FILE=""
@@ -82,6 +83,8 @@ show_convert_usage() {
     echo -e "  --index               Generate index from [index:term] markers"
     echo -e "  --lulu                Generate Lulu.com print-ready output (interior + cover spread)"
     echo -e "  --trim-size SIZE      Set trim size: 5.5x8.5, 6x9, 7x10, a5, a4 (default: from metadata or a4)"
+    echo -e "  --force-preprocess    Aggressively sanitize code blocks for LaTeX (strip highlighting"
+    echo -e "                        from blocks with $, {, }, #). Use when LaTeX fails on code content."
 }
 
 # Parse command-line arguments for convert command
@@ -228,6 +231,10 @@ parse_convert_args() {
             --trim-size)
                 ARG_TRIM_SIZE="$2"
                 shift 2
+                ;;
+            --force-preprocess)
+                ARG_FORCE_PREPROCESS=true
+                shift
                 ;;
             --format)
                 ARG_FORMAT="$2"

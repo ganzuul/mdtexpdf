@@ -352,6 +352,7 @@ install() {
     _install_filter "long_equation_filter.lua" "long equations"
     _install_filter "image_size_filter.lua" "image sizing"
     _install_filter "table_size_filter.lua" "wide tables"
+    _install_filter "latex_safe_code.lua" "LaTeX-safe code blocks"
     _install_filter "book_structure.lua" "book format" "."
     _install_filter "drop_caps_filter.lua" "drop caps" "."
     _install_filter "index_filter.lua" "subject index"
@@ -458,6 +459,7 @@ help() {
     echo -e "                    ${BLUE}--epub-css FILE       Use custom CSS for EPUB${NC}"
     echo -e "                    ${BLUE}-i, --include FILE    Include additional markdown file (repeatable)${NC}"
     echo -e "                    ${BLUE}--index               Generate index from [index:term] markers${NC}"
+    echo -e "                    ${BLUE}--force-preprocess    Aggressively sanitize code for LaTeX${NC}"
     echo -e "                  ${BLUE}Example:${NC} mdtexpdf convert document.md"
     echo -e "                  ${BLUE}Example:${NC} mdtexpdf convert -a \"John Doe\" -t \"My Document\" --toc --toc-depth 3 document.md output.pdf\n"
 

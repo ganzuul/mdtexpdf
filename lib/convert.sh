@@ -369,6 +369,10 @@ setup_lua_filters() {
         "wide table sizing" \
         "Wide tables may overflow page margins."
 
+    _add_lua_filter "latex_safe_code.lua" \
+        "LaTeX-safe code blocks" \
+        "Code blocks with $ may cause 'Extra }' LaTeX errors."
+
     # Conditional filters
     if [ "$ARG_FORMAT" = "book" ]; then
         _add_lua_filter "book_structure.lua" \
@@ -1374,6 +1378,16 @@ _cleanup_pdf_artifacts() {
 generate_pdf() {
     # Preprocess the markdown file for better LaTeX compatibility
     preprocess_markdown "$INPUT_FILE"
+
+    # Export force-preprocess flag for the latex_safe_code.lua Lua filter.
+    # The filter reads MDTEXPDF_FORCE_PREPROCESS to decide whether to also
+    # strip highlighting from code blocks containing { } # (in addition to $).
+    if [ "$ARG_FORCE_PREPROCESS" = true ]; then
+        export MDTEXPDF_FORCE_PREPROCESS=1
+        echo -e "${YELLOW}Force-preprocess enabled: aggressive code block sanitization for LaTeX${NC}"
+    else
+        export MDTEXPDF_FORCE_PREPROCESS=0
+    fi
 
     # Image captions are now handled by the image_size_filter.lua Lua filter
 
