@@ -793,6 +793,343 @@ setup_pdf_bibliography() {
 }
 
 # =============================================================================
+# Helper: Pandoc Stderr Diagnostics
+# =============================================================================
+# Parses Pandoc's stderr output (which includes LaTeX error messages) when
+# the actual .log file is not available.  Pandoc captures the LaTeX engine's
+# stderr and re-emits it, so the error patterns are similar but less detailed.
+# Arguments:
+#   $1 - stderr_file: Path to the captured stderr file
+#   $2 - source_md: Path to the original markdown file (for reference)
+# Returns: 0 always (diagnostics are printed, not returned)
+diagnose_pandoc_stderr() {
+    local stderr_file="$1"
+    local source_md="$2"
+
+    if [ ! -f "$stderr_file" ] || [ ! -s "$stderr_file" ]; then
+        echo -e "${YELLOW}No Pandoc error output captured.${NC}"
+        return 0
+    fi
+
+    echo ""
+    echo -e "${RED}═══════════════════════════════════════════════════════════${NC}"
+    echo -e "${RED}  LaTeX Error Diagnostics (from Pandoc output)${NC}"
+    echo -e "${RED}═══════════════════════════════════════════════════════════${NC}"
+
+    # Extract the first few fatal errors (lines starting with "! ")
+    local error_count=0
+    while IFS= read -r error_line; do
+        error_count=$((error_count + 1))
+        if [ "$error_count" -le 5 ]; then
+            echo -e "${RED}  Error $error_count: $error_line${NC}"
+        fi
+    done < <(grep '^! ' "$stderr_file" 2>/dev/null)
+
+    if [ "$error_count" -eq 0 ]; then
+        # Pandoc wraps errors with "Error producing PDF." — show those lines too
+        local pandoc_errors
+        pandoc_errors=$(grep -i 'error' "$stderr_file" 2>/dev/null | head -5)
+        if [ -n "$pandoc_errors" ]; then
+            echo -e "${YELLOW}  Pandoc reported:${NC}"
+            while IFS= read -r pe; do
+                echo -e "${YELLOW}    $pe${NC}"
+            done <<< "$pandoc_errors"
+        else
+            echo -e "${YELLOW}  No explicit errors found in Pandoc output.${NC}"
+        fi
+    elif [ "$error_count" -gt 5 ]; then
+        echo -e "${YELLOW}  ... and $((error_count - 5)) more errors${NC}"
+    fi
+
+    # Extract the context lines (l.XXXX) that show where the error occurred
+    local loc_lines
+    loc_lines=$(grep '^l\.' "$stderr_file" 2>/dev/null | head -5)
+    if [ -n "$loc_lines" ]; then
+        echo ""
+        echo -e "${PURPLE}  Error locations in generated LaTeX:${NC}"
+        while IFS= read -r loc_line; do
+            echo -e "${PURPLE}    $loc_line${NC}"
+        done <<< "$loc_lines"
+    fi
+
+    # Detect common error patterns and provide actionable advice
+    echo ""
+    echo -e "${BLUE}  Common cause analysis:${NC}"
+
+    # Pattern: Extra }, or forgotten $ — typically bare $ in code/highlighted text
+    if grep -q 'Extra }, or forgotten \$' "$stderr_file" 2>/dev/null; then
+        echo -e "${YELLOW}  ⚠ Detected: 'Extra }, or forgotten \$' error${NC}"
+        echo -e "${YELLOW}    This usually means a \$ character appears inside a LaTeX command${NC}"
+        echo -e "${YELLOW}    (e.g., inside \\textcolor from code highlighting or a table cell).${NC}"
+        echo -e "${YELLOW}    Fix: Wrap the content in backticks (\`...\`) for inline code,${NC}"
+        echo -e "${YELLOW}    or use a fenced code block (\`\`\`...\`\`\`) instead of a bare code span.${NC}"
+        echo -e "${YELLOW}    Alternatively, escape the dollar sign in markdown: \\\$ instead of \${NC}"
+    fi
+
+    # Pattern: Missing $ inserted — unescaped math characters in text mode
+    if grep -q 'Missing \$ inserted' "$stderr_file" 2>/dev/null; then
+        echo -e "${YELLOW}  ⚠ Detected: 'Missing \$ inserted' error${NC}"
+        echo -e "${YELLOW}    A math character (like _ or ^) appeared outside math mode,${NC}"
+        echo -e "${YELLOW}    or a \$ in a code block was tokenized by the syntax highlighter.${NC}"
+        echo -e "${YELLOW}    Fix: Use a fenced code block without a language tag (no highlighting),${NC}"
+        echo -e "${YELLOW}    or escape the dollar sign: \\\$ instead of \$ .${NC}"
+    fi
+
+    # Pattern: Undefined control sequence
+    if grep -q 'Undefined control sequence' "$stderr_file" 2>/dev/null; then
+        echo -e "${YELLOW}  ⚠ Detected: Undefined control sequence${NC}"
+        local undef_cmds
+        undef_cmds=$(grep 'Undefined control sequence' "$stderr_file" 2>/dev/null | head -3)
+        while IFS= read -r uc; do
+            echo -e "${YELLOW}      $uc${NC}"
+        done <<< "$undef_cmds"
+        echo -e "${YELLOW}    Fix: Check for misspelled LaTeX commands or missing packages.${NC}"
+    fi
+
+    # Pattern: xdvipdfmx fatal — font/driver issue
+    if grep -q 'xdvipdfmx:fatal' "$stderr_file" 2>/dev/null; then
+        echo -e "${YELLOW}  ⚠ Detected: xdvipdfmx fatal error${NC}"
+        echo -e "${YELLOW}    This is often caused by corrupt or variable-font TTF files.${NC}"
+        echo -e "${YELLOW}    Fix: Remove variable-font files (*[wght].ttf) and rebuild the font cache.${NC}"
+        echo -e "${YELLOW}    Run: fc-cache -fv && luaotfload-tool --update${NC}"
+    fi
+
+    # Pattern: Missing character in font
+    if grep -q 'Missing character' "$stderr_file" 2>/dev/null; then
+        echo -e "${YELLOW}  ⚠ Detected: Missing character(s) in font${NC}"
+        local missing_chars
+        missing_chars=$(grep 'Missing character' "$stderr_file" 2>/dev/null | head -3)
+        while IFS= read -r mc; do
+            echo -e "${YELLOW}      $mc${NC}"
+        done <<< "$missing_chars"
+        echo -e "${YELLOW}    Fix: Check if the font supports these characters, or use \\ensuremath{}${NC}"
+    fi
+
+    echo ""
+    echo -e "${BLUE}  Source markdown: $source_md${NC}"
+    echo -e "${RED}═══════════════════════════════════════════════════════════${NC}"
+    echo ""
+    return 0
+}
+
+# =============================================================================
+# Helper: LaTeX Error Diagnostics (from .log file)
+# =============================================================================
+# Parses the LaTeX .log file after a failed conversion and extracts
+# actionable error information with line context.
+# Arguments:
+#   $1 - log_file: Path to the .log file
+#   $2 - source_md: Path to the original markdown file (for reference)
+# Returns: 0 always (diagnostics are printed, not returned)
+diagnose_latex_error() {
+    local log_file="$1"
+    local source_md="$2"
+
+    if [ ! -f "$log_file" ]; then
+        echo -e "${YELLOW}No LaTeX log file found at $log_file${NC}"
+        return 0
+    fi
+
+    echo ""
+    echo -e "${RED}═══════════════════════════════════════════════════════════${NC}"
+    echo -e "${RED}  LaTeX Error Diagnostics${NC}"
+    echo -e "${RED}═══════════════════════════════════════════════════════════${NC}"
+
+    # Extract the first few fatal errors (lines starting with "! ")
+    local error_count=0
+    while IFS= read -r error_line; do
+        error_count=$((error_count + 1))
+        if [ "$error_count" -le 5 ]; then
+            echo -e "${RED}  Error $error_count: $error_line${NC}"
+        fi
+    done < <(grep '^! ' "$log_file" 2>/dev/null)
+
+    if [ "$error_count" -eq 0 ]; then
+        echo -e "${YELLOW}  No explicit '! ' errors found in log.${NC}"
+        # Check for common non-! error patterns
+        local fatal_line
+        fatal_line=$(grep -m1 -i 'fatal\|Emergency stop\|Fatal error' "$log_file" 2>/dev/null)
+        if [ -n "$fatal_line" ]; then
+            echo -e "${YELLOW}  Found: $fatal_line${NC}"
+        fi
+    elif [ "$error_count" -gt 5 ]; then
+        echo -e "${YELLOW}  ... and $((error_count - 5)) more errors (see log for details)${NC}"
+    fi
+
+    # Extract the context lines (l.XXXX) that show where the error occurred
+    echo ""
+    echo -e "${PURPLE}  Error locations in generated LaTeX:${NC}"
+    local loc_count=0
+    while IFS= read -r loc_line; do
+        loc_count=$((loc_count + 1))
+        if [ "$loc_count" -le 5 ]; then
+            echo -e "${PURPLE}    $loc_line${NC}"
+        fi
+    done < <(grep '^l\.' "$log_file" 2>/dev/null | head -5)
+
+    # Detect common error patterns and provide actionable advice
+    echo ""
+    echo -e "${BLUE}  Common cause analysis:${NC}"
+
+    # Pattern: Extra }, or forgotten $ — typically bare $ in code/highlighted text
+    if grep -q 'Extra }, or forgotten \$' "$log_file" 2>/dev/null; then
+        echo -e "${YELLOW}  ⚠ Detected: 'Extra }, or forgotten \$' error${NC}"
+        echo -e "${YELLOW}    This usually means a \$ character appears inside a LaTeX command${NC}"
+        echo -e "${YELLOW}    (e.g., inside \\textcolor from code highlighting or a table cell).${NC}"
+        echo -e "${YELLOW}    Fix: Wrap the content in backticks (\`...\`) for inline code,${NC}"
+        echo -e "${YELLOW}    or use a fenced code block (\`\`\`...\`\`\`) instead of a bare code span.${NC}"
+        echo -e "${YELLOW}    Alternatively, escape the dollar sign in markdown: \\\$ instead of \${NC}"
+    fi
+
+    # Pattern: Missing character — font doesn't have the glyph
+    if grep -q 'Missing character' "$log_file" 2>/dev/null; then
+        local missing_chars
+        missing_chars=$(grep 'Missing character' "$log_file" 2>/dev/null | head -3)
+        echo -e "${YELLOW}  ⚠ Detected: Missing character(s) in font${NC}"
+        echo -e "${YELLOW}    Some characters could not be rendered:${NC}"
+        while IFS= read -r mc; do
+            echo -e "${YELLOW}      $mc${NC}"
+        done <<< "$missing_chars"
+        echo -e "${YELLOW}    Fix: Check if the font supports these characters, or use \\ensuremath{}${NC}"
+    fi
+
+    # Pattern: Undefined control sequence
+    if grep -q 'Undefined control sequence' "$log_file" 2>/dev/null; then
+        local undef_cmds
+        undef_cmds=$(grep 'Undefined control sequence' "$log_file" 2>/dev/null | head -3)
+        echo -e "${YELLOW}  ⚠ Detected: Undefined control sequence${NC}"
+        echo -e "${YELLOW}    LaTeX encountered an unknown command:${NC}"
+        while IFS= read -r uc; do
+            echo -e "${YELLOW}      $uc${NC}"
+        done <<< "$undef_cmds"
+        echo -e "${YELLOW}    Fix: Check for misspelled LaTeX commands or missing packages.${NC}"
+    fi
+
+    # Pattern: Missing $ inserted — unescaped math characters in text mode
+    if grep -q 'Missing \$ inserted' "$log_file" 2>/dev/null; then
+        echo -e "${YELLOW}  ⚠ Detected: 'Missing \$ inserted' error${NC}"
+        echo -e "${YELLOW}    A math character (like _ or ^) appeared outside math mode.${NC}"
+        echo -e "${YELLOW}    Fix: Escape underscores (\\_), carets (\\^), or wrap in \$...\$ for math.${NC}"
+    fi
+
+    # Pattern: xdvipdfmx fatal — font/driver issue
+    if grep -q 'xdvipdfmx:fatal' "$log_file" 2>/dev/null; then
+        echo -e "${YELLOW}  ⚠ Detected: xdvipdfmx fatal error${NC}"
+        echo -e "${YELLOW}    This is often caused by corrupt or variable-font TTF files.${NC}"
+        echo -e "${YELLOW}    Fix: Remove variable-font files (*[wght].ttf) and rebuild the font cache.${NC}"
+        echo -e "${YELLOW}    Run: fc-cache -fv && luaotfload-tool --update${NC}"
+    fi
+
+    echo ""
+    echo -e "${BLUE}  Full log file: $log_file${NC}"
+    echo -e "${BLUE}  Source markdown: $source_md${NC}"
+    echo -e "${RED}═══════════════════════════════════════════════════════════${NC}"
+    echo ""
+    return 0
+}
+
+# =============================================================================
+# Helper: Markdown Lint for LaTeX Compatibility
+# =============================================================================
+# Checks the markdown source for patterns that commonly break LaTeX output.
+# Reports warnings but does not modify the file.
+# Arguments:
+#   $1 - input_file: Path to markdown file
+# Returns: 0 always (warnings are printed, not returned)
+lint_markdown_for_latex() {
+    local input_file="$1"
+    local total_warnings=0
+
+    # Skip lint if file doesn't exist
+    [ -f "$input_file" ] || return 0
+
+    # Check 1: Bare $ characters in table rows that aren't paired math delimiters
+    # Tables with pipes |...| containing $ that aren't paired $...$ are problematic
+    local table_warning_count=0
+    while IFS= read -r line; do
+        local line_num="${line%%:*}"
+        local content="${line#*:}"
+        table_warning_count=$((table_warning_count + 1))
+        if [ "$table_warning_count" -le 10 ]; then
+            echo -e "${YELLOW}  ⚠ Line $line_num: Table row with unpaired \$ or special chars:${NC}${BLUE} ${content:0:80}${NC}"
+        fi
+    done < <(grep -nP '^\|.*[\$!].*\|' "$input_file" 2>/dev/null | grep -vP '\$[^$]*\$' | head -10)
+
+    if [ "$table_warning_count" -gt 0 ]; then
+        echo -e "${YELLOW}  ($table_warning_count table rows with potentially problematic characters)${NC}"
+        echo -e "${YELLOW}  Hint: Wrap table cells with special chars in backtick code spans (\`...\`)${NC}"
+        total_warnings=$((total_warnings + table_warning_count))
+    fi
+
+    # Check 2: Inline code spans with $ or ! that might break inside \textcolor
+    # This is the most common cause of "Extra }, or forgotten $" errors
+    local code_warning_count=0
+    while IFS= read -r line; do
+        local line_num="${line%%:*}"
+        local content="${line#*:}"
+        code_warning_count=$((code_warning_count + 1))
+        if [ "$code_warning_count" -le 5 ]; then
+            echo -e "${YELLOW}  ⚠ Line $line_num: Inline code contains \$ or ! characters:${NC}${BLUE} ${content:0:80}${NC}"
+        fi
+    done < <(grep -nP '`[^`]*[\$!][^`]*`' "$input_file" 2>/dev/null | head -5)
+
+    if [ "$code_warning_count" -gt 0 ]; then
+        echo -e "${YELLOW}  ($code_warning_count inline code spans with \$ or ! characters)${NC}"
+        echo -e "${YELLOW}  Hint: These may break inside Pandoc's syntax highlighting (\\textcolor).${NC}"
+        echo -e "${YELLOW}  Consider using a fenced code block or escaping \$ as \\\$ .${NC}"
+        total_warnings=$((total_warnings + code_warning_count))
+    fi
+
+    # Check 3: Unpaired $ signs outside of code blocks (potential math mode issues)
+    local unpaired_dollar_count=0
+    local in_code_block=false
+    local md_line_num=0
+    while IFS= read -r line; do
+        md_line_num=$((md_line_num + 1))
+        # Track fenced code blocks
+        local line_start="${line:0:3}"
+        if [[ "$line_start" == "~~~" ]] || [[ "$line_start" == '```' ]]; then
+            if [ "$in_code_block" = true ]; then
+                in_code_block=false
+            else
+                in_code_block=true
+            fi
+            continue
+        fi
+        # Skip lines inside code blocks
+        [ "$in_code_block" = true ] && continue
+
+        # Count dollar signs on this line (excluding escaped \$)
+        local clean_line
+        clean_line=$(echo "$line" | sed 's/\\\$//g')
+        local dollar_count
+        dollar_count=$(echo "$clean_line" | tr -cd '$' | wc -c)
+        # Odd number of $ means unpaired (potential issue)
+        if [ $((dollar_count % 2)) -ne 0 ] && [ "$dollar_count" -gt 0 ]; then
+            unpaired_dollar_count=$((unpaired_dollar_count + 1))
+            if [ "$unpaired_dollar_count" -le 5 ]; then
+                echo -e "${YELLOW}  ⚠ Line $md_line_num: Odd number of \$ signs ($dollar_count) — possible unpaired math delimiter:${NC}${BLUE} ${line:0:80}${NC}"
+            fi
+        fi
+    done < "$input_file"
+
+    if [ "$unpaired_dollar_count" -gt 0 ]; then
+        echo -e "${YELLOW}  ($unpaired_dollar_count lines with unpaired \$ signs)${NC}"
+        echo -e "${YELLOW}  Hint: Ensure every \$ has a matching closing \$, or escape as \\\$ .${NC}"
+        total_warnings=$((total_warnings + unpaired_dollar_count))
+    fi
+
+    # Summary
+    if [ "$total_warnings" -gt 0 ]; then
+        echo ""
+        echo -e "${YELLOW}  Total: $total_warnings lint warning(s) found.${NC}"
+        echo -e "${YELLOW}  These may cause LaTeX errors. Fix them or wrap in code blocks.${NC}"
+    fi
+
+    return 0
+}
+
+# =============================================================================
 # Helper: Execute Pandoc and Cleanup
 # =============================================================================
 # Runs the pandoc command and performs post-conversion cleanup.
@@ -822,6 +1159,14 @@ execute_pandoc() {
         return $?
     fi
 
+    # Locate the LaTeX log file for error diagnostics on failure.
+    # Pandoc runs the engine in a temp dir and cleans it up, so the .log
+    # often disappears before we can read it.  Instead, capture Pandoc's
+    # stderr (which includes the LaTeX error output) into a temp file.
+    local _pdf_log_file=""
+    local _pandoc_stderr_file
+    _pandoc_stderr_file=$(mktemp --suffix=.pandoc.stderr)
+
     if pandoc "$_PDF_PROCESSED_INPUT_FILE" \
         --from markdown \
         --to pdf \
@@ -840,7 +1185,7 @@ execute_pandoc() {
         "${_PDF_HEADER_FOOTER_VARS[@]}" \
         "${_PDF_BOOK_FEATURE_VARS[@]}" \
         "${_PDF_TRIM_VARS[@]}" \
-        --standalone; then
+        --standalone 2>"$_pandoc_stderr_file"; then
         echo -e "${GREEN}Success! PDF created as $OUTPUT_FILE${NC}"
 
         # Additional message for CJK documents
@@ -848,10 +1193,38 @@ execute_pandoc() {
             echo -e "${GREEN}✓ CJK characters (Chinese, Japanese, Korean) have been properly rendered in the PDF.${NC}"
         fi
 
+        # Clean up stderr capture on success
+        rm -f "$_pandoc_stderr_file"
+
         _cleanup_pdf_artifacts
         return 0
     else
         echo -e "${RED}Error: PDF conversion failed.${NC}"
+
+        # Try to find the actual .log file (Pandoc may preserve it in some configs)
+        _pdf_log_file="${OUTPUT_FILE%.pdf}.log"
+        if [ ! -f "$_pdf_log_file" ]; then
+            _pdf_log_file=$(find "$(dirname "$OUTPUT_FILE")" -maxdepth 1 -name "*.log" -newer "$_PDF_TEMPLATE_PATH" 2>/dev/null | head -1)
+        fi
+
+        # Provide LaTeX error diagnostics:
+        # 1) From the actual .log file if available (most detailed)
+        # 2) From Pandoc's stderr capture (always available, less detailed)
+        if [ -f "$_pdf_log_file" ]; then
+            diagnose_latex_error "$_pdf_log_file" "$INPUT_FILE"
+        elif [ -s "$_pandoc_stderr_file" ]; then
+            diagnose_pandoc_stderr "$_pandoc_stderr_file" "$INPUT_FILE"
+        else
+            echo -e "${YELLOW}Could not locate error details for diagnostics.${NC}"
+        fi
+
+        # Clean up stderr capture
+        rm -f "$_pandoc_stderr_file"
+
+        # Run the markdown linter to flag potential source issues
+        echo -e "${BLUE}Running markdown lint for LaTeX compatibility...${NC}"
+        lint_markdown_for_latex "$_PDF_PROCESSED_INPUT_FILE"
+
         _cleanup_pdf_artifacts
         return 1
     fi
@@ -943,6 +1316,17 @@ _execute_pandoc_with_index() {
         return 0
     else
         echo -e "${RED}Error: PDF was not generated.${NC}"
+
+        # Provide LaTeX error diagnostics from the log file
+        local _idx_log_file="${base_name}.log"
+        if [ -f "$_idx_log_file" ]; then
+            diagnose_latex_error "$_idx_log_file" "$INPUT_FILE"
+        fi
+
+        # Run the markdown linter to flag potential source issues
+        echo -e "${BLUE}Running markdown lint for LaTeX compatibility...${NC}"
+        lint_markdown_for_latex "$_PDF_PROCESSED_INPUT_FILE"
+
         rm -f "${base_name}.tex" "${base_name}.aux" "${base_name}.log" \
               "${base_name}.toc" "${base_name}.lof" "${base_name}.lot" \
               "${base_name}.idx" "${base_name}.ind" "${base_name}.ilg" \
@@ -992,6 +1376,12 @@ generate_pdf() {
     preprocess_markdown "$INPUT_FILE"
 
     # Image captions are now handled by the image_size_filter.lua Lua filter
+
+    # Proactive lint: check for markdown patterns that commonly break LaTeX.
+    # This runs before the expensive pandoc invocation so the user gets early
+    # feedback.  (The same linter runs again on failure for context.)
+    echo -e "${BLUE}Checking markdown for LaTeX compatibility...${NC}"
+    lint_markdown_for_latex "$INPUT_FILE"
 
     # Convert markdown to PDF using pandoc with our template
     echo -e "${YELLOW}Converting $INPUT_FILE to PDF...${NC}"
