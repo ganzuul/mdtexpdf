@@ -1112,6 +1112,13 @@ $figure_numbering_commands
 \\makeindex
 \$endif\$
 
+% Custom math commands used in project documents
+\\newcommand{\\St}{\\mathrm{St}}
+\\newcommand{\\StEnv}{\\mathrm{StEnv}}
+\\newcommand{\\cat}[1]{\\mathcal{#1}}
+\\mathchardef\\seq="203B
+\\newcommand{\\parr}{\\mathbin{\\parallel}}
+
 % Custom header includes from document metadata
 \$for(header-includes)\$
 \$header-includes\$
