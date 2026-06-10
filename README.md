@@ -66,12 +66,19 @@ mdtexpdf/
 │   └── test_regression.sh   # Regression tests
 ├── docs/                    # Documentation (guides, references)
 ├── filters/
-│   ├── book_structure.lua       # Part/chapter/special page handling
-│   ├── drop_caps_filter.lua     # Decorative first letters
-│   ├── long_equation_filter.lua # Equation line-breaking
-│   ├── equation_number_filter.lua # Equation numbering
-│   ├── heading_fix_filter.lua   # Heading level adjustments
-│   └── index_filter.lua        # Subject index marker processing
+│   ├── book_structure.lua           # Part/chapter/special page handling
+│   ├── drop_caps_filter.lua         # Decorative first letters
+│   ├── long_equation_filter.lua     # Equation line-breaking
+│   ├── equation_number_filter.lua   # Equation numbering
+│   ├── heading_fix_filter.lua       # Heading level adjustments
+│   ├── image_size_filter.lua        # Automatic image sizing
+│   ├── table_size_filter.lua        # Wide table sizing
+│   ├── index_filter.lua             # Subject index marker processing
+│   ├── latex_safe_code.lua          # Prevents $ in code blocks breaking LaTeX
+│   ├── pygments_filter.lua          # Pygmentize syntax highlighting (bold/italic/underline)
+│   └── pseudocode_filter.lua        # Algorithmic pseudocode blocks
+├── styles/                     # LaTeX style files
+│   └── mdtexpdf-pygments.sty   # Reference token definitions for pygments
 ├── examples/                # Example documents with PDFs
 └── .github/workflows/       # CI/CD automation
 ```
@@ -83,7 +90,8 @@ mdtexpdf/
 - **Markdown to EPUB Conversion**: Generate EPUB3 ebooks with cover, front matter, and TOC
 - **LaTeX Math Support**: Inline (`$...$`) and display (`$$...$$`) equations
 - **Chemical Equations**: Full mhchem support (`\ce{H2O}`, `\ce{CH3COOH <=> CH3COO- + H+}`)
-- **Code Highlighting**: Syntax highlighting for code blocks
+- **Code Highlighting**: Syntax highlighting for code blocks via Pandoc (Skylighting) or pygmentize (`--pygments`)
+- **LaTeX-Safe Code Blocks**: Automatic detection and sanitization of `$`, `{`, `}`, `#` in code to prevent LaTeX build failures
 - **Tables and Figures**: Full support for Markdown tables and images
 - **YAML Frontmatter**: Comprehensive metadata configuration
 
@@ -197,6 +205,10 @@ mdtexpdf convert -t "Title" -a "Author" doc.md  # With metadata
 | `--read-metadata` | Read metadata from YAML frontmatter |
 | `--index` | Enable subject index generation |
 | `--lulu` | Generate Lulu.com print-ready output |
+| `--force-preprocess` | Aggressively sanitize code blocks (strip highlighting from blocks with `$`, `{`, `}`, `#`) |
+| `--pygments` | Use pygmentize for syntax highlighting (bold/italic/underline instead of colors) |
+| `--pygments-no-wrap` | Disable line wrapping in pygments-highlighted code blocks |
+| `--pygments-fontsize SIZE` | Set font size for pygments code blocks (e.g. `small`, `footnotesize`, `tiny`) |
 
 ### Header/Footer Policy
 
@@ -441,6 +453,14 @@ Common issues:
 4. **CJK characters**: Install `fonts-noto-cjk` (Debian/Ubuntu) or `noto-fonts-cjk` (Arch)
 5. **fontspec "Latin Modern Roman" not found**: Install `fonts-lmodern` (Debian/Ubuntu) or `otf-latin-modern` (Arch)
 6. **`dutchcal.sty` not found**: Install `texlive-fontsextra` (Arch) or `texlive-fonts-extra` (Debian/Ubuntu)
+
+## Known Bugs
+
+1. **Code block font mixing**: When using `--pygments`, code blocks occasionally mix fonts for unknown reasons — some tokens appear in Inconsolata while others fall back to the document serif font. Workaround: re-run the conversion.
+
+## To-Do
+
+- Add Unicode Emoji support
 
 ## License
 

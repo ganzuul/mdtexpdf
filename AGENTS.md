@@ -74,3 +74,45 @@ code blocks without problematic characters.
 `--force-preprocess` extends this to also strip highlighting from code
 blocks containing `{`, `}`, or `#`.  The flag is communicated to the
 filter via the `MDTEXPDF_FORCE_PREPROCESS` environment variable.
+
+## Pygments syntax highlighting (`--pygments`)
+
+The `--pygments` flag replaces Pandoc's built-in syntax highlighting
+(Skylighting) with pygmentize.  It uses bold/italic/underline instead
+of color commands, avoiding `\textcolor`-related LaTeX errors entirely.
+
+**Usage:**
+```bash
+./mdtexpdf.sh convert --pygments \
+  -t "My Doc" -a "Jane Doe" -d "yes" --no-footer \
+  input.md
+```
+
+**Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--pygments` | off | Enable pygmentize-based highlighting |
+| `--pygments-no-wrap` | off (wrap on) | Disable line wrapping in code blocks |
+| `--pygments-fontsize SIZE` | (default) | Set font size (`small`, `footnotesize`, `tiny`, etc.) |
+
+**How it works:**
+1. A Pandoc Lua filter (`pygments_filter.lua`) pipes each fenced code
+   block through `pygmentize -f latex` and returns the result as raw
+   LaTeX (`\begin{Verbatim}...\end{Verbatim}` with `\PY` token commands).
+2. The template includes a `$if(pygments)$` conditional block that
+   defines all `\PY@tok@...` style commands using only markdown primitives
+   (`\textbf`, `\textit`, `\underline` — never `\textcolor`).
+3. When `--pygments` is active, `latex_safe_code.lua` is **skipped**
+   (pygments handles `$`, `{`, `}`, `#` natively via `\PYZdl`, `\PYZob`,
+   etc.).
+
+**Key facts for debugging:**
+- The style definitions live in template.sh as a heredoc block inside
+  `$if(pygments)$…$endif$`.  They were mechanically generated from
+  `styles/mdtexpdf-pygments.sty`.
+- Heredoc escaping rules: `\\` → `\`, `\$` → `$`, `` \` `` → `` ` ``.
+- Pandoc's template engine uses `$$` for a literal `$` (not `\$`).
+- The `\PYZbs` definition must use `\\\\` at the end to produce `\\`
+  (double backslash) in the Pandoc output.
+- pygments_filter.lua replaces `CodeBlock` elements only; inline code
+  (`Code` / `` ` ``) still uses Pandoc's default highlighting.

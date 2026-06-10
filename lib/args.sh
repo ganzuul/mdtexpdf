@@ -41,6 +41,9 @@ init_convert_args() {
     ARG_LULU=false
     ARG_TRIM_SIZE=""
     ARG_FORCE_PREPROCESS=false
+    ARG_PYGMENTS=false
+    ARG_PYGMENTS_NO_WRAP=false
+    ARG_PYGMENTS_FONTSIZE=""
 
     # Reset file variables
     INPUT_FILE=""
@@ -85,6 +88,10 @@ show_convert_usage() {
     echo -e "  --trim-size SIZE      Set trim size: 5.5x8.5, 6x9, 7x10, a5, a4 (default: from metadata or a4)"
     echo -e "  --force-preprocess    Aggressively sanitize code blocks for LaTeX (strip highlighting"
     echo -e "                        from blocks with $, {, }, #). Use when LaTeX fails on code content."
+    echo -e "  --pygments           Use pygmentize for syntax highlighting instead of Pandoc's built-in."
+    echo -e "                        Uses bold/italic/underline instead of colors (markdown primitives style)."
+    echo -e "  --pygments-no-wrap   Disable line wrapping in pygments-highlighted code blocks (wrap is on by default)."
+    echo -e "  --pygments-fontsize  Set font size for pygments code blocks (e.g. small, footnotesize, tiny)."
 }
 
 # Parse command-line arguments for convert command
@@ -235,6 +242,18 @@ parse_convert_args() {
             --force-preprocess)
                 ARG_FORCE_PREPROCESS=true
                 shift
+                ;;
+            --pygments)
+                ARG_PYGMENTS=true
+                shift
+                ;;
+            --pygments-no-wrap)
+                ARG_PYGMENTS_NO_WRAP=true
+                shift
+                ;;
+            --pygments-fontsize)
+                ARG_PYGMENTS_FONTSIZE="$2"
+                shift 2
                 ;;
             --format)
                 ARG_FORMAT="$2"

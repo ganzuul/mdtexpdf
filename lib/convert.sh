@@ -161,8 +161,10 @@ _resolve_template_interactive() {
     echo -e "${YELLOW}Setting up document preferences...${NC}"
 
     # Check if the file has a first-level heading (# Title) before asking for title
+    # Skip lines inside fenced code blocks (```...```) to avoid treating
+    # # comments in code as headings.
     local FIRST_HEADING
-    FIRST_HEADING=$(grep -m 1 "^# " "$INPUT_FILE" | sed 's/^# //')
+    FIRST_HEADING=$(awk '/^```/{in_code=!in_code; next} !in_code && /^# / && !/^##/' "$INPUT_FILE" | head -1 | sed 's/^# //')
 
     local TITLE AUTHOR DOC_DATE FOOTER_TEXT
 
@@ -369,9 +371,14 @@ setup_lua_filters() {
         "wide table sizing" \
         "Wide tables may overflow page margins."
 
-    _add_lua_filter "latex_safe_code.lua" \
-        "LaTeX-safe code blocks" \
-        "Code blocks with $ may cause 'Extra }' LaTeX errors."
+    # When pygments mode is active, pygments handles $ \ { } # etc. natively
+    # via its LaTeX formatter, so latex_safe_code is redundant and would
+    # interfere by stripping language tags that pygments_filter needs.
+    if [ "$ARG_PYGMENTS" != true ]; then
+        _add_lua_filter "latex_safe_code.lua" \
+            "LaTeX-safe code blocks" \
+            "Code blocks with $ may cause 'Extra }' LaTeX errors."
+    fi
 
     # Conditional filters
     if [ "$ARG_FORMAT" = "book" ]; then
@@ -396,6 +403,12 @@ setup_lua_filters() {
         _add_lua_filter "equation_number_filter.lua" \
             "equation numbering" \
             "Equation numbering will not be applied."
+    fi
+
+    if [ "$ARG_PYGMENTS" = true ]; then
+        _add_lua_filter "pygments_filter.lua" \
+            "pygments syntax highlighting" \
+            "Pygments-based syntax highlighting will not be applied."
     fi
 
     # Build filter options string
@@ -696,6 +709,9 @@ build_pandoc_vars() {
     _build_book_feature_vars
     _build_cover_vars
     _build_trim_vars
+
+    _PDF_PYGMENTS_VARS=""
+    [ "$ARG_PYGMENTS" = true ] && _PDF_PYGMENTS_VARS="--variable=pygments"
 
     return 0
 }
@@ -1189,6 +1205,7 @@ execute_pandoc() {
         "${_PDF_HEADER_FOOTER_VARS[@]}" \
         "${_PDF_BOOK_FEATURE_VARS[@]}" \
         "${_PDF_TRIM_VARS[@]}" \
+        $_PDF_PYGMENTS_VARS \
         --standalone 2>"$_pandoc_stderr_file"; then
         echo -e "${GREEN}Success! PDF created as $OUTPUT_FILE${NC}"
 
@@ -1267,6 +1284,7 @@ _execute_pandoc_with_index() {
         "${_PDF_HEADER_FOOTER_VARS[@]}" \
         "${_PDF_BOOK_FEATURE_VARS[@]}" \
         "${_PDF_TRIM_VARS[@]}" \
+        $_PDF_PYGMENTS_VARS \
         --standalone; then
         echo -e "${RED}Error: pandoc LaTeX generation failed.${NC}"
         _cleanup_pdf_artifacts
@@ -1387,6 +1405,21 @@ generate_pdf() {
         echo -e "${YELLOW}Force-preprocess enabled: aggressive code block sanitization for LaTeX${NC}"
     else
         export MDTEXPDF_FORCE_PREPROCESS=0
+    fi
+
+    if [ "$ARG_PYGMENTS" = true ]; then
+        export MDTEXPDF_PYGMENTS=1
+        echo -e "${YELLOW}Pygments mode enabled: using pygmentize for syntax highlighting${NC}"
+        if [ "$ARG_PYGMENTS_NO_WRAP" = true ]; then
+            export MDTEXPDF_PYGMENTS_NOWRAP=1
+            echo -e "${YELLOW}  pygments-no-wrap: line wrapping disabled${NC}"
+        fi
+        if [ -n "$ARG_PYGMENTS_FONTSIZE" ]; then
+            export MDTEXPDF_PYGMENTS_FONTSIZE="$ARG_PYGMENTS_FONTSIZE"
+            echo -e "${YELLOW}  pygments-fontsize: $ARG_PYGMENTS_FONTSIZE${NC}"
+        fi
+    else
+        export MDTEXPDF_PYGMENTS=0
     fi
 
     # Image captions are now handled by the image_size_filter.lua Lua filter

@@ -357,6 +357,7 @@ install() {
     _install_filter "drop_caps_filter.lua" "drop caps" "."
     _install_filter "index_filter.lua" "subject index"
     _install_filter "equation_number_filter.lua" "equation numbering"
+    _install_filter "pygments_filter.lua" "pygments syntax highlighting"
 
     # Copy templates
     if [ -d "$SCRIPT_DIR/templates" ]; then
