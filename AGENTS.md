@@ -116,3 +116,30 @@ of color commands, avoiding `\textcolor`-related LaTeX errors entirely.
   (double backslash) in the Pandoc output.
 - pygments_filter.lua replaces `CodeBlock` elements only; inline code
   (`Code` / `` ` ``) still uses Pandoc's default highlighting.
+
+## Unicode character handling policy
+
+When a Unicode character causes a LaTeX error (missing glyph, invalid byte
+sequence, or compilation failure), follow this escalation order:
+
+1. **Map to a supported glyph first.** Add a `\newunicodechar` mapping in
+   `lib/template.sh` that renders the unsupported character using an equivalent
+   glyph from the supported font families:
+   - **Serif/math**: STIX Two Text, STIX Two Math
+   - **Mono**: Inconsolata (pygments mode), DejaVu Sans Mono / Latin Modern Mono (fallback)
+   - **Sans**: Latin Modern Sans / TeX Gyre Heros (fallback)
+
+   Example: Greek `Φ` → `\newunicodechar{Φ}{\ensuremath{\Phi}}` or a text
+   equivalent like `\textPhi` if available in the font.
+
+2. **Only if no reasonable mapping exists**, modify Lua filters or parser
+   scripts. This is a last resort — prefer font-level solutions that preserve
+   the original character semantics.
+
+**Rationale**: The supported fonts cover most scientific/mathematical Unicode.
+Mapping at the template level is simpler, more maintainable, and avoids
+introducing parser complexity for edge cases.
+
+**Implementation**: Add mappings inside the `\ifluatex` / `\ifxetex` blocks
+in `lib/template.sh` using `\newunicodechar{<char>}{<replacement>}`. For
+pdfLaTeX, use `\DeclareUnicodeCharacter{<hex>}{<replacement>}`.

@@ -312,6 +312,12 @@ BOOK_CMDS_EOF
     \\usepackage{etoolbox}
     \\usepackage{upquote}
     \\usepackage{newunicodechar}
+    % Map Greek capital Phi to math mode (works in all contexts including inline code)
+    \\newunicodechar{Φ}{\\ensuremath{\\Phi}}
+    % Define checkbox symbols for task lists (Pandoc generates \\item[$$\\square$$])
+    % \\providecommand only defines if not already defined (amssymb provides these for pdfLaTeX)
+    \\providecommand{\\square}{\\fbox{\\rule{0pt}{1.2ex}\\rule{0.9ex}{0pt}}}
+    \\providecommand{\\blacksquare}{\\ensuremath{\\vrule width 0.6em height 0.6em depth 0em}}
     \\usepackage{textcomp}
     \\usepackage{fancyvrb}
     \\usepackage{listings}
