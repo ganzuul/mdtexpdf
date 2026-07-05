@@ -938,10 +938,10 @@ BOOK_CMDS_EOF
 % \\setlist[enumerate,2]{label=\\alph*.}
 % etc. For now, just ensuring depth.
 
-% Define \\tightlist as an empty command.
-% This prevents an "Undefined control sequence" error if pandoc emits \\tightlist,
-% while avoiding the original \\tightlist definition that might cause issues with deep nesting.
-\\providecommand{\\tightlist}{}
+% Define \\tightlist for compact Pandoc lists (lists without blank lines between items)
+\\providecommand{\\tightlist}{%
+  \\setlength{\\itemsep}{0pt}%
+  \\setlength{\\parskip}{0pt}}
 
 % Configure equation handling for better line breaking
 % Using the amsmath package which is already loaded
