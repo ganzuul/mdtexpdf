@@ -559,33 +559,6 @@ BOOK_CMDS_EOF
         \\newunicodechar{⇔}{\\ensuremath{\\Leftrightarrow}}
         \\newunicodechar{⇌}{\\ensuremath{\\rightleftharpoons}}
 
-        % Unicode subscript digits (for chemical formulas like H₂O)
-        \\newunicodechar{₀}{\\ensuremath{_0}}
-        \\newunicodechar{₁}{\\ensuremath{_1}}
-        \\newunicodechar{₂}{\\ensuremath{_2}}
-        \\newunicodechar{₃}{\\ensuremath{_3}}
-        \\newunicodechar{₄}{\\ensuremath{_4}}
-        \\newunicodechar{₅}{\\ensuremath{_5}}
-        \\newunicodechar{₆}{\\ensuremath{_6}}
-        \\newunicodechar{₇}{\\ensuremath{_7}}
-        \\newunicodechar{₈}{\\ensuremath{_8}}
-        \\newunicodechar{₉}{\\ensuremath{_9}}
-        \\newunicodechar{₊}{\\ensuremath{_+}}
-        \\newunicodechar{₋}{\\ensuremath{_-}}
-
-        % Unicode superscript digits and symbols
-        \\newunicodechar{⁰}{\\ensuremath{^0}}
-        \\newunicodechar{¹}{\\ensuremath{^1}}
-        \\newunicodechar{²}{\\ensuremath{^2}}
-        \\newunicodechar{³}{\\ensuremath{^3}}
-        \\newunicodechar{⁴}{\\ensuremath{^4}}
-        \\newunicodechar{⁵}{\\ensuremath{^5}}
-        \\newunicodechar{⁶}{\\ensuremath{^6}}
-        \\newunicodechar{⁷}{\\ensuremath{^7}}
-        \\newunicodechar{⁸}{\\ensuremath{^8}}
-        \\newunicodechar{⁹}{\\ensuremath{^9}}
-        \\newunicodechar{⁺}{\\ensuremath{^+}}
-        \\newunicodechar{⁻}{\\ensuremath{^-}}
     \\fi\\fi
 
     % XeLaTeX: ucharclasses already handles font switching for math Unicode blocks

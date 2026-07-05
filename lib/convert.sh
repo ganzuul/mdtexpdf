@@ -355,6 +355,10 @@ setup_lua_filters() {
     _PDF_LUA_FILTERS=()
 
     # Core filters (always attempted)
+    _add_lua_filter "subscript_superscript_filter.lua" \
+        "Unicode subscript/superscript mapping" \
+        "Subscript/superscript Unicode characters may not render correctly in LaTeX."
+
     _add_lua_filter "heading_fix_filter.lua" \
         "heading line break fix" \
         "Level 4 and 5 headings may run inline."
