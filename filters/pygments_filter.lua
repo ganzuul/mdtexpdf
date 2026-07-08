@@ -62,7 +62,7 @@ return {
       end
 
       local lexer = lexer_name(code_block)
-      if lexer == "text" or lexer == "" then
+      if lexer == "" then
         return nil
       end
 

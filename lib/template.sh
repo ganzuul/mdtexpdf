@@ -312,8 +312,6 @@ BOOK_CMDS_EOF
     \\usepackage{etoolbox}
     \\usepackage{upquote}
     \\usepackage{newunicodechar}
-    % Map Greek capital Phi to math mode (works in all contexts including inline code)
-    \\newunicodechar{Φ}{\\ensuremath{\\Phi}}
     % Define checkbox symbols for task lists (Pandoc generates \\item[$$\\square$$])
     % \\providecommand only defines if not already defined (amssymb provides these for pdfLaTeX)
     \\providecommand{\\square}{\\fbox{\\rule{0pt}{1.2ex}\\rule{0.9ex}{0pt}}}
@@ -513,11 +511,8 @@ BOOK_CMDS_EOF
         \\newunicodechar{ῃ}{\\ensuremath{\\eta}}
         \\newunicodechar{ῳ}{\\ensuremath{\\omega}}
 
-        % Define Unicode box-drawing characters for pdfLaTeX
         \\newunicodechar{├}{\\texttt{|--}}
-        \\newunicodechar{│}{\\texttt{|}}
         \\newunicodechar{└}{\\texttt{$(printf %s '\`')--}}
-        \\newunicodechar{─}{\\texttt{-}}
         % Mathematical symbols (text mode compatible)
         \\newunicodechar{ℝ}{\\ensuremath{\\mathbb{R}}}
         \\newunicodechar{ℤ}{\\ensuremath{\\mathbb{Z}}}
@@ -560,6 +555,21 @@ BOOK_CMDS_EOF
         \\newunicodechar{⇌}{\\ensuremath{\\rightleftharpoons}}
 
     \\fi\\fi
+
+    % Disable ucharclasses font transitions inside Verbatim (fancyvrb) environments.
+    % Inconsolata contains native glyphs for box-drawing (U+2500+) and arrows (U+2190+),
+    % but ucharclasses' Arrows/BoxDrawing transitions switch to STIX Two Math then out-
+    % transition to \rmfamily, breaking monospace alignment for the entire code block.
+    \\ifdefined\\XeTeXinterchartokenstate
+      \\BeforeBeginEnvironment{Verbatim}{\\XeTeXinterchartokenstate=0}
+      \\AfterEndEnvironment{Verbatim}{\\XeTeXinterchartokenstate=1}
+    \\fi
+
+    % Unicode characters missing from Inconsolata that commonly appear in
+    % code blocks — map to ASCII equivalents to prevent proportional font fallback
+    \\newunicodechar{▼}{v}
+    \\newunicodechar{▲}{\^{}}
+    \\newunicodechar{◄}{<}
 
     % XeLaTeX: ucharclasses already handles font switching for math Unicode blocks
     % (see \setTransitionsFor above). No additional \newunicodechar needed for operators.
@@ -608,14 +618,13 @@ BOOK_CMDS_EOF
         \\newunicodechar{ℂ}{\\ensuremath{\\mathbb{C}}}
     \\fi
 
-    % Phonetic Extensions — modifier letters not in STIX Two Math/Text
-    % These are used in scientific notation (e.g. nuclear isomers: ᵐTc, ᵍ-ray)
-    % Rendered as scaled-down italic text letters as a typographic fallback
-    \\newunicodechar{ᵍ}{{\\fontsize{0.7em}{0.7em}\\selectfont\\textit{g}}}
-    \\newunicodechar{ᵐ}{{\\fontsize{0.7em}{0.7em}\\selectfont\\textit{m}}}
-    % ℏ (U+210F PLANCK CONSTANT OVER TWO PI) — present in STIX Two Text but
-    % mapped to \ensuremath{\hbar} for consistent rendering via the math font
-    \\newunicodechar{ℏ}{\\ensuremath{\\hbar}}
+    % Phonetic Extensions and Planck constant — only needed for pdfLaTeX
+    % XeLaTeX/LuaLaTeX renders these natively via STIX Two Text/fontspec
+    \\ifluatex\\else\\ifxetex\\else
+        \\newunicodechar{ᵍ}{{\\fontsize{0.7em}{0.7em}\\selectfont\\textit{g}}}
+        \\newunicodechar{ᵐ}{{\\fontsize{0.7em}{0.7em}\\selectfont\\textit{m}}}
+        \\newunicodechar{ℏ}{\\ensuremath{\\hbar}}
+    \\fi\\fi
     \\lstset{
       basicstyle=\\ttfamily\\small,
       breaklines=true,          % Enable automatic line breaking
@@ -1107,9 +1116,9 @@ $figure_numbering_commands
 \$if(pygments)\$
 % Set monospace font to Inconsolata for highlighted code blocks
 \\ifluatex
-  \\setmonofont{Inconsolata}
+  \\setmonofont{Inconsolata Semi Condensed}[Ligatures=TeX]
 \\else\\ifxetex
-  \\setmonofont{Inconsolata}
+  \\setmonofont{Inconsolata Semi Condensed}[Ligatures=TeX]
 \\else
   \\usepackage{inconsolata}
 \\fi\\fi
