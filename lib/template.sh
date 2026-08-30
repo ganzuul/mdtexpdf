@@ -992,6 +992,13 @@ $numbering_commands
 % Custom figure caption handling
 \\usepackage{caption}
 \\captionsetup{font=small,labelfont=bf,textfont=it}
+% Fix for Pandoc longtables without caption (LTcaptype=none)
+% Pandoc generates {\def\LTcaptype{none} ...} for uncaptioned tables.
+% caption+hyperref then try \refstepcounter{none} which fails without counter.
+\\makeatletter
+\\@ifundefined{c@none}{\\newcounter{none}}{}
+\\providecommand{\\theHnone}{none}
+\\makeatother
 \\renewcommand{\\figurename}{Figure}
 $figure_numbering_commands
 
